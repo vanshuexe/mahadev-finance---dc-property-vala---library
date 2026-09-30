@@ -86,9 +86,9 @@ export const AdminPage: React.FC = () => {
     return unsub;
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (dbService.adminLogin(pinInput)) {
+    if (await dbService.adminLogin(pinInput)) {
       setIsLoggedIn(true);
       setLoginError(false);
       setPinInput('');
@@ -226,18 +226,15 @@ export const AdminPage: React.FC = () => {
                 autoFocus
                 value={pinInput}
                 onChange={(e) => setPinInput(e.target.value)}
-                placeholder="PIN: 1234"
+                placeholder="Enter Admin Password"
                 className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-center text-lg font-mono tracking-widest text-slate-900 focus:border-[#024089] focus:bg-white outline-none"
               />
-              <p className="text-[11px] text-slate-500 mt-1.5 text-center">
-                Authorized standard passcode: <strong className="text-[#024089]">1234</strong>
-              </p>
             </div>
 
             {loginError && (
               <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-1.5">
                 <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>Invalid credentials. Enter authorized PIN: 1234</span>
+                <span>Invalid credentials. Access denied.</span>
               </div>
             )}
 

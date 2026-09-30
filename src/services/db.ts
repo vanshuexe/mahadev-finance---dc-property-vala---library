@@ -770,7 +770,8 @@ const INITIAL_SETTINGS: SiteSettings = {
   instagramUrl: 'https://www.instagram.com/dcpropertyvala_jodhpur?stkn=MWRsMWNzY3NtYjJjdA==',
   instagramPersonalUrl: 'https://www.instagram.com/ekshivbhaktt___?stkn=cXJ0YmJjMnduaHJo',
   instagramFinanceUrl: 'https://www.instagram.com/mahadev_finance_jodhpur93?stkn=NnA1ZnY3bnkwMTBx',
-  adminPin: '1234',
+  // SHA-256 hash of 'ADMIN@125677656' — never store plain-text password
+  adminPin: '203556992716e27549de6f4bab1b7d58e37265d3456d68edf758d3c861db972a',
   noticeBanner: 'Serving Jodhpur across 3 Prime Branches: Jalori Gate, Kudi Sector 5 & Saraswati Nagar.',
   founderImageUrl: 'https://ik.imagekit.io/fdhgiehjz/WhatsApp%20Image%202026-09-29%20at%207.56.02%20PM_nKmI33Jdg.jpeg',
   officeBannerUrl: 'https://ik.imagekit.io/fdhgiehjz/tt.jpeg'
@@ -1184,6 +1185,22 @@ class MahadevDatabaseService {
     this.notify();
   }
 
+  // Migrate plain-text PIN to secure hash on app init
+  public async migrateAdminPin(): Promise<void> {
+    try {
+      const data = localStorage.getItem(KEYS.SETTINGS);
+      if (!data) return;
+      const parsed = JSON.parse(data);
+      // If pin is not a 64-char hex SHA-256 hash, it's plain text — upgrade silently
+      if (parsed.adminPin && parsed.adminPin.length < 64) {
+        parsed.adminPin = INITIAL_SETTINGS.adminPin;
+        localStorage.setItem(KEYS.SETTINGS, JSON.stringify(parsed));
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   // --- CONTENT ---
   public getContent(): WebsiteContent {
     try {
@@ -1213,14 +1230,23 @@ class MahadevDatabaseService {
   }
 
   // --- AUTH / ADMIN PIN ---
+  private async hashPin(pin: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(pin.trim());
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+  }
+
   public isAdminLoggedIn(): boolean {
     if (typeof window === 'undefined') return false;
     return sessionStorage.getItem(KEYS.ADMIN_SESSION) === 'true';
   }
 
-  public adminLogin(pin: string): boolean {
+  public async adminLogin(pin: string): Promise<boolean> {
     const settings = this.getSettings();
-    if (pin.trim() === settings.adminPin || pin.trim() === '1234') {
+    const hashed = await this.hashPin(pin);
+    if (hashed === settings.adminPin) {
       sessionStorage.setItem(KEYS.ADMIN_SESSION, 'true');
       return true;
     }
